@@ -195,7 +195,7 @@ export default function App() {
       apiFetch("/expenses"),
     ]);
     setData({
-      operators: operators || [],
+      operators: (operators || []).map(op => ({ ...op, id: op._id })),
       workLogs: (workLogs || []).map(l => ({ ...l, id: l._id, operatorId: l.operatorId })),
       advances: (expenses || []).map(e => ({ ...e, id: e._id, operatorId: e.operatorId })),
     });
@@ -981,7 +981,7 @@ function WorkLogTab({ data, updateData, showToast }) {
   }
 
   const logs = data.workLogs.filter(l => !l.attendanceOnly)
-    .filter(l => filterOp === "all" || l.operatorId === parseInt(filterOp))
+    .filter(l => filterOp === "all" || l.operatorId === filterOp)
     .filter(l => {
       if (!localSearch.trim()) return true;
       const s = localSearch.toLowerCase();
@@ -1225,22 +1225,28 @@ function ExpensesTab({ data, updateData, showToast }) {
     if (!form.operatorId || !form.amount || !form.date) {
       showToast("Fill all required fields", "error"); return;
     }
-    const newEntries = [{
-      id: Date.now(), operatorId: parseInt(form.operatorId),
-      date: form.date, amount: parseFloat(form.amount),
-      description: form.description, category: form.category,
-    }];
+    await apiFetch("/expenses", {
+      method: "POST",
+      body: JSON.stringify({
+        operatorId: form.operatorId,
+        date: form.date, amount: parseFloat(form.amount),
+        description: form.description, category: form.category,
+      }),
+    });
     if (addSecond && form.amount2) {
-      newEntries.push({
-        id: Date.now() + 1, operatorId: parseInt(form.operatorId),
-        date: form.date, amount: parseFloat(form.amount2),
-        description: form.description, category: form.category2,
+      await apiFetch("/expenses", {
+        method: "POST",
+        body: JSON.stringify({
+          operatorId: form.operatorId,
+          date: form.date, amount: parseFloat(form.amount2),
+          description: form.description, category: form.category2,
+        }),
       });
     }
-    updateData(prev => ({ ...prev, advances: [...prev.advances, ...newEntries] }));
-    showToast(newEntries.length > 1 ? "2 expenses recorded! 💸" : "Expense recorded! 💸");
+    showToast(addSecond && form.amount2 ? "2 expenses recorded! 💸" : "Expense recorded! 💸");
     setForm({ operatorId: "", date: new Date().toISOString().split("T")[0], amount: "", description: "", category: "general", amount2: "", category2: "general" });
     setAddSecond(false);
+    updateData(d => d);
     setView("list");
   }
 
